@@ -1,4 +1,4 @@
-module github.com/cligrep/cli-excel-extract
+module github.com/cligrep/excelx
 
 go 1.26
 

@@ -22,7 +22,7 @@ else
   COMMIT="unknown"
 fi
 DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-LDFLAGS="-s -w -X github.com/cligrep/cli-excel-extract/internal/buildinfo.Version=${VERSION} -X github.com/cligrep/cli-excel-extract/internal/buildinfo.Commit=${COMMIT} -X github.com/cligrep/cli-excel-extract/internal/buildinfo.Date=${DATE}"
+LDFLAGS="-s -w -X github.com/cligrep/excelx/internal/buildinfo.Version=${VERSION} -X github.com/cligrep/excelx/internal/buildinfo.Commit=${COMMIT} -X github.com/cligrep/excelx/internal/buildinfo.Date=${DATE}"
 
 build_target() {
   local goos="$1"
@@ -33,19 +33,20 @@ build_target() {
   (
     cd "${ROOT_DIR}"
     CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" \
-      go build -trimpath -ldflags="${LDFLAGS}" -o "${output}" ./cmd/excel-extract
+      go build -trimpath -ldflags="${LDFLAGS}" -o "${output}" ./cmd/excelx
   )
 }
 
+rm -rf "${DIST_DIR}"
 mkdir -p "${DIST_DIR}/darwin-arm64" "${DIST_DIR}/windows-amd64"
 
-build_target "darwin" "arm64" "${DIST_DIR}/darwin-arm64/excel-extract"
-build_target "windows" "amd64" "${DIST_DIR}/windows-amd64/excel-extract.exe"
+build_target "darwin" "arm64" "${DIST_DIR}/darwin-arm64/excelx"
+build_target "windows" "amd64" "${DIST_DIR}/windows-amd64/excelx.exe"
 
 echo
 echo "Package outputs:"
-echo "  ${DIST_DIR}/darwin-arm64/excel-extract"
-echo "  ${DIST_DIR}/windows-amd64/excel-extract.exe"
+echo "  ${DIST_DIR}/darwin-arm64/excelx"
+echo "  ${DIST_DIR}/windows-amd64/excelx.exe"
 echo
 echo "Version:"
 echo "  version=${VERSION} commit=${COMMIT} date=${DATE}"

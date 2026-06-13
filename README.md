@@ -1,6 +1,6 @@
-# excel-extract 操作手册
+# excelx 操作手册
 
-`excel-extract` 是一个使用 Go 1.26、Cobra 和 Excelize 构建的命令行工具，用于从 `.xlsx` 和 `.xlsm` 文件中读取和写入内容。新命令模型使用 `read` 表示不修改文件，使用 `write` 表示会修改原文件或生成新文件；旧版 `sheets`、`cell`、`row`、`fill` 命令继续兼容。
+`excelx` 是一个使用 Go 1.26、Cobra 和 Excelize 构建的命令行工具，用于从 `.xlsx` 和 `.xlsm` 文件中读取和写入内容。新命令模型使用 `read` 表示不修改文件，使用 `write` 表示会修改原文件或生成新文件；旧版 `sheets`、`cell`、`row`、`fill` 命令继续兼容。
 
 ## 支持范围
 
@@ -16,13 +16,13 @@
 构建当前平台可执行程序：
 
 ```bash
-CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/excel-extract ./cmd/excel-extract
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/excelx ./cmd/excelx
 ```
 
 构建完成后，可执行程序路径为：
 
 ```bash
-dist/excel-extract
+dist/excelx
 ```
 
 最终运行只需要这个可执行程序，不需要额外脚本、配置文件或样例 Excel 文件。
@@ -30,13 +30,13 @@ dist/excel-extract
 查看版本：
 
 ```bash
-./dist/excel-extract --version
+./dist/excelx --version
 ```
 
 输出示例：
 
 ```text
-excel-extract version=v0.1.0 commit=unknown date=unknown platform=darwin/arm64
+excelx version=v0.1.0 commit=unknown date=unknown platform=darwin/arm64
 ```
 
 ## 跨平台打包
@@ -50,8 +50,8 @@ excel-extract version=v0.1.0 commit=unknown date=unknown platform=darwin/arm64
 输出文件：
 
 ```text
-dist/darwin-arm64/excel-extract
-dist/windows-amd64/excel-extract.exe
+dist/darwin-arm64/excelx
+dist/windows-amd64/excelx.exe
 ```
 
 每个目标目录里都是单一 CLI 可执行程序，不需要额外运行时文件。
@@ -72,12 +72,12 @@ dist/windows-amd64/excel-extract.exe
 ## 查看帮助
 
 ```bash
-./dist/excel-extract --help
-./dist/excel-extract --version
-./dist/excel-extract read --help
-./dist/excel-extract read range --help
-./dist/excel-extract write --help
-./dist/excel-extract write batch --help
+./dist/excelx --help
+./dist/excelx --version
+./dist/excelx read --help
+./dist/excelx read range --help
+./dist/excelx write --help
+./dist/excelx write batch --help
 ```
 
 帮助内容包含支持文件类型、行列规则、公式计算行为、文本/JSON 输出格式和可复制示例。通常只看 `--help` 就能完成操作。
@@ -89,47 +89,47 @@ dist/windows-amd64/excel-extract.exe
 列出工作表：
 
 ```bash
-./dist/excel-extract read sheets -f "/path/to/report.xlsm"
+./dist/excelx read sheets -f "/path/to/report.xlsm"
 ```
 
 查看 workbook 结构。文本输出依次是 sheet 名、已用范围、最大行、最大列：
 
 ```bash
-./dist/excel-extract read info -f "/path/to/report.xlsm"
+./dist/excelx read info -f "/path/to/report.xlsm"
 ```
 
 读取单元格：
 
 ```bash
-./dist/excel-extract read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
-./dist/excel-extract read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c 2 --json
+./dist/excelx read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
+./dist/excelx read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c 2 --json
 ```
 
 读取一行或指定列范围：
 
 ```bash
-./dist/excel-extract read row -f "/path/to/report.xlsm" -s SR1 -r 4
-./dist/excel-extract read row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H --json
+./dist/excelx read row -f "/path/to/report.xlsm" -s SR1 -r 4
+./dist/excelx read row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H --json
 ```
 
 读取一列或指定行范围：
 
 ```bash
-./dist/excel-extract read col -f "/path/to/report.xlsm" -s SR1 -c B
-./dist/excel-extract read col -f "/path/to/report.xlsm" -s SR1 -c B --from-row 1 --to-row 20 --json
+./dist/excelx read col -f "/path/to/report.xlsm" -s SR1 -c B
+./dist/excelx read col -f "/path/to/report.xlsm" -s SR1 -c B --from-row 1 --to-row 20 --json
 ```
 
 读取矩形区域。文本输出是 TSV 矩阵：
 
 ```bash
-./dist/excel-extract read range -f "/path/to/report.xlsm" -s SR1 --range A1:H20
-./dist/excel-extract read range -f "/path/to/report.xlsm" -s SR1 --range B4 --json
+./dist/excelx read range -f "/path/to/report.xlsm" -s SR1 --range A1:H20
+./dist/excelx read range -f "/path/to/report.xlsm" -s SR1 --range B4 --json
 ```
 
 任意单元格批量读取：
 
 ```bash
-./dist/excel-extract read batch -f "/path/to/report.xlsm" --queries queries.json --json
+./dist/excelx read batch -f "/path/to/report.xlsm" --queries queries.json --json
 ```
 
 `queries.json`：
@@ -170,21 +170,21 @@ dist/windows-amd64/excel-extract.exe
 写一个单元格：
 
 ```bash
-./dist/excel-extract write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c B --type text --value "已确认"
-./dist/excel-extract write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c C --type number --value 123.45
-./dist/excel-extract write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c D --type blank --json
+./dist/excelx write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c B --type text --value "已确认"
+./dist/excelx write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c C --type number --value 123.45
+./dist/excelx write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c D --type blank --json
 ```
 
 写一行连续区域：
 
 ```bash
-./dist/excel-extract write row -f "/path/to/report.xlsx" -s SR1 -r 4 --from-col B --values values.json
+./dist/excelx write row -f "/path/to/report.xlsx" -s SR1 -r 4 --from-col B --values values.json
 ```
 
 写一列连续区域：
 
 ```bash
-./dist/excel-extract write col -f "/path/to/report.xlsx" -s SR1 -c B --from-row 4 --values values.json
+./dist/excelx write col -f "/path/to/report.xlsx" -s SR1 -c B --from-row 4 --values values.json
 ```
 
 `values.json`：
@@ -202,7 +202,7 @@ dist/windows-amd64/excel-extract.exe
 写矩形区域：
 
 ```bash
-./dist/excel-extract write range -f "/path/to/report.xlsx" -s SR1 --range B4:D6 --values range-values.json
+./dist/excelx write range -f "/path/to/report.xlsx" -s SR1 --range B4:D6 --values range-values.json
 ```
 
 `range-values.json`：
@@ -225,14 +225,14 @@ dist/windows-amd64/excel-extract.exe
 清空单元格或矩形区域，保留样式：
 
 ```bash
-./dist/excel-extract write clear -f "/path/to/report.xlsx" -s SR1 --range B4:D6
+./dist/excelx write clear -f "/path/to/report.xlsx" -s SR1 --range B4:D6
 ```
 
 任意单元格批量写入：
 
 ```bash
-./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates updates.json
-./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates updates.json --output "/path/to/filled.xlsx"
+./dist/excelx write batch -f "/path/to/report.xlsx" --updates updates.json
+./dist/excelx write batch -f "/path/to/report.xlsx" --updates updates.json --output "/path/to/filled.xlsx"
 ```
 
 `updates.json`：
@@ -252,7 +252,7 @@ dist/windows-amd64/excel-extract.exe
 从标准输入读取 JSON：
 
 ```bash
-cat updates.json | ./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates - --json
+cat updates.json | ./dist/excelx write batch -f "/path/to/report.xlsx" --updates - --json
 ```
 
 支持的写入类型：
@@ -280,19 +280,19 @@ updated /path/to/report.xlsx: 5 cells
 以下旧命令继续可用，行为与新命令对应：
 
 ```bash
-./dist/excel-extract sheets -f "/path/to/report.xlsm"
-./dist/excel-extract cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
-./dist/excel-extract row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
-./dist/excel-extract fill -f "/path/to/report.xlsx" --updates updates.json
+./dist/excelx sheets -f "/path/to/report.xlsm"
+./dist/excelx cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
+./dist/excelx row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
+./dist/excelx fill -f "/path/to/report.xlsx" --updates updates.json
 ```
 
 对应的新命令：
 
 ```bash
-./dist/excel-extract read sheets -f "/path/to/report.xlsm"
-./dist/excel-extract read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
-./dist/excel-extract read row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
-./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates updates.json
+./dist/excelx read sheets -f "/path/to/report.xlsm"
+./dist/excelx read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
+./dist/excelx read row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
+./dist/excelx write batch -f "/path/to/report.xlsx" --updates updates.json
 ```
 
 ## 样例验证
@@ -306,13 +306,13 @@ SAMPLE="/Users/linlay/Downloads/期货公司监管报表（月报）1.3.2版 (2)
 列出工作表：
 
 ```bash
-./dist/excel-extract read sheets -f "$SAMPLE" --json
+./dist/excelx read sheets -f "$SAMPLE" --json
 ```
 
 提取 `SR1!B4`：
 
 ```bash
-./dist/excel-extract read cell -f "$SAMPLE" -s SR1 -r 4 -c B
+./dist/excelx read cell -f "$SAMPLE" -s SR1 -r 4 -c B
 ```
 
 预期输出：
@@ -324,7 +324,7 @@ SAMPLE="/Users/linlay/Downloads/期货公司监管报表（月报）1.3.2版 (2)
 提取 `SR1` 第 4 行 JSON：
 
 ```bash
-./dist/excel-extract read row -f "$SAMPLE" -s SR1 -r 4 --json
+./dist/excelx read row -f "$SAMPLE" -s SR1 -r 4 --json
 ```
 
 ## 错误处理
@@ -351,4 +351,4 @@ go test ./...
 ```
 
 测试覆盖列号解析、A1 范围解析、参数校验、JSON 输出、空单元格处理、批量读写校验和保存策略，以及临时 `.xlsx` 的新旧命令行为。
-# cli-excel-extract
+# excelx

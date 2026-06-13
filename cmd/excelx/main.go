@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cligrep/cli-excel-extract/internal/cli"
+	"github.com/cligrep/excelx/internal/cli"
 )
 
 func main() {

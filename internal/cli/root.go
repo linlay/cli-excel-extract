@@ -7,17 +7,17 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cligrep/cli-excel-extract/internal/buildinfo"
-	"github.com/cligrep/cli-excel-extract/internal/extract"
+	"github.com/cligrep/excelx/internal/buildinfo"
+	"github.com/cligrep/excelx/internal/extract"
 	"github.com/spf13/cobra"
 )
 
 func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	root := &cobra.Command{
-		Use:     "excel-extract",
-		Short:   "Extract values from .xlsx and .xlsm workbooks",
+		Use:     "excelx",
+		Short:   "Read and write .xlsx and .xlsm workbooks",
 		Version: buildinfo.String(),
-		Long: `excel-extract reads and writes .xlsx and .xlsm workbooks.
+		Long: `excelx reads and writes .xlsx and .xlsm workbooks.
 
 Supported files:
   - .xlsx and .xlsm only; legacy .xls is not supported.
@@ -39,12 +39,12 @@ Values and output:
   - Text output is suitable for terminal use; row text output is tab-separated.
   - Add --json for machine-readable output.
   - Errors are printed to stderr and return a non-zero exit code.`,
-		Example: `  excel-extract read sheets -f report.xlsm
-  excel-extract read cell -f report.xlsm -s SR1 -r 6 -c C
-  excel-extract read range -f report.xlsm -s SR1 --range A1:H20 --json
-  excel-extract write cell -f report.xlsx -s SR1 -r 6 -c C --type text --value done
-  excel-extract write batch -f report.xlsx --updates updates.json --output filled.xlsx
-  excel-extract --version`,
+		Example: `  excelx read sheets -f report.xlsm
+  excelx read cell -f report.xlsm -s SR1 -r 6 -c C
+  excelx read range -f report.xlsm -s SR1 --range A1:H20 --json
+  excelx write cell -f report.xlsx -s SR1 -r 6 -c C --type text --value done
+  excelx write batch -f report.xlsx --updates updates.json --output filled.xlsx
+  excelx --version`,
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -81,8 +81,8 @@ Required:
 Output:
   - Text mode prints one sheet name per line.
   - JSON mode prints: {"file":"report.xlsm","sheets":["封面","SR1"]}`,
-		Example: `  excel-extract sheets -f report.xlsm
-  excel-extract sheets -f report.xlsm --json`,
+		Example: `  excelx sheets -f report.xlsm
+  excelx sheets -f report.xlsm --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ListSheets(file)
@@ -127,9 +127,9 @@ Values:
 Output:
   - Text mode prints only the cell value.
   - JSON mode prints: {"file":"report.xlsm","sheet":"SR1","row":6,"col":"C","value":"43,077,363.00"}`,
-		Example: `  excel-extract cell -f report.xlsm -s SR1 -r 6 -c C
-  excel-extract cell -f report.xlsm -s SR1 -r 6 -c 3
-  excel-extract cell -f report.xlsm -s SR1 -r 6 -c C --json`,
+		Example: `  excelx cell -f report.xlsm -s SR1 -r 6 -c C
+  excelx cell -f report.xlsm -s SR1 -r 6 -c 3
+  excelx cell -f report.xlsm -s SR1 -r 6 -c C --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ExtractCell(file, sheet, row, col)
@@ -180,9 +180,9 @@ Values and output:
   - Empty cells are preserved as empty strings.
   - Text mode joins values with tab characters.
   - JSON mode prints: {"file":"report.xlsm","sheet":"SR1","row":6,"cells":[{"col":"C","value":"43,077,363.00"}]}`,
-		Example: `  excel-extract row -f report.xlsm -s SR1 -r 6
-  excel-extract row -f report.xlsm -s SR1 -r 6 --from-col A --to-col H
-  excel-extract row -f report.xlsm -s SR1 -r 6 --from-col 1 --to-col 8 --json`,
+		Example: `  excelx row -f report.xlsm -s SR1 -r 6
+  excelx row -f report.xlsm -s SR1 -r 6 --from-col A --to-col H
+  excelx row -f report.xlsm -s SR1 -r 6 --from-col 1 --to-col 8 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ExtractRow(file, sheet, row, fromCol, toCol)
@@ -246,9 +246,9 @@ Types:
   - bool writes true or false.
   - formula writes a formula and requires value to start with =.
   - blank clears cell value and formula while preserving style.`,
-		Example: `  excel-extract fill -f report.xlsx --updates updates.json
-  excel-extract fill -f report.xlsx --updates updates.json --output filled.xlsx
-  cat updates.json | excel-extract fill -f report.xlsx --updates - --json`,
+		Example: `  excelx fill -f report.xlsx --updates updates.json
+  excelx fill -f report.xlsx --updates updates.json --output filled.xlsx
+  cat updates.json | excelx fill -f report.xlsx --updates - --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request, err := readFillRequest(updatesPath, cmd.InOrStdin())
@@ -284,13 +284,13 @@ func newReadCommand(out io.Writer) *cobra.Command {
 
 Use read subcommands for sheets, workbook info, one cell, one row, one column,
 one rectangular range, or a JSON batch of arbitrary cell queries.`,
-		Example: `  excel-extract read sheets -f report.xlsx
-  excel-extract read info -f report.xlsx --json
-  excel-extract read cell -f report.xlsx -s SR1 -r 4 -c B
-  excel-extract read row -f report.xlsx -s SR1 -r 4 --from-col A --to-col H
-  excel-extract read col -f report.xlsx -s SR1 -c B --from-row 1 --to-row 20
-  excel-extract read range -f report.xlsx -s SR1 --range A1:H20
-  excel-extract read batch -f report.xlsx --queries queries.json --json`,
+		Example: `  excelx read sheets -f report.xlsx
+  excelx read info -f report.xlsx --json
+  excelx read cell -f report.xlsx -s SR1 -r 4 -c B
+  excelx read row -f report.xlsx -s SR1 -r 4 --from-col A --to-col H
+  excelx read col -f report.xlsx -s SR1 -c B --from-row 1 --to-row 20
+  excelx read range -f report.xlsx -s SR1 --range A1:H20
+  excelx read batch -f report.xlsx --queries queries.json --json`,
 		Args: cobra.NoArgs,
 	}
 	cmd.AddCommand(newReadSheetsCommand(out))
@@ -313,8 +313,8 @@ func newReadSheetsCommand(out io.Writer) *cobra.Command {
 		Long: `List all sheet names in a .xlsx or .xlsm workbook.
 
 This read command never modifies the source file.`,
-		Example: `  excel-extract read sheets -f report.xlsx
-  excel-extract read sheets -f report.xlsx --json`,
+		Example: `  excelx read sheets -f report.xlsx
+  excelx read sheets -f report.xlsx --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ListSheets(file)
@@ -346,8 +346,8 @@ func newReadInfoCommand(out io.Writer) *cobra.Command {
 		Long: `Show workbook structure for a .xlsx or .xlsm workbook.
 
 Text output is tab-separated: sheet name, used range, max row, max column.`,
-		Example: `  excel-extract read info -f report.xlsx
-  excel-extract read info -f report.xlsx --json`,
+		Example: `  excelx read info -f report.xlsx
+  excelx read info -f report.xlsx --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.InspectWorkbook(file)
@@ -385,8 +385,8 @@ func newReadCellCommand(out io.Writer) *cobra.Command {
 
 Text output prints only the cell value. JSON output reuses the stable cell fields:
 {"file":"report.xlsx","sheet":"SR1","row":4,"col":"B","value":"text"}.`,
-		Example: `  excel-extract read cell -f report.xlsx -s SR1 -r 4 -c B
-  excel-extract read cell -f report.xlsx -s SR1 -r 4 -c 2 --json`,
+		Example: `  excelx read cell -f report.xlsx -s SR1 -r 4 -c B
+  excelx read cell -f report.xlsx -s SR1 -r 4 -c 2 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ExtractCell(file, sheet, row, col)
@@ -423,8 +423,8 @@ func newReadRowCommand(out io.Writer) *cobra.Command {
 		Long: `Read one row from a .xlsx or .xlsm workbook.
 
 Use --from-col and --to-col to limit the inclusive column range. Text output is tab-separated.`,
-		Example: `  excel-extract read row -f report.xlsx -s SR1 -r 4
-  excel-extract read row -f report.xlsx -s SR1 -r 4 --from-col A --to-col H --json`,
+		Example: `  excelx read row -f report.xlsx -s SR1 -r 4
+  excelx read row -f report.xlsx -s SR1 -r 4 --from-col A --to-col H --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ExtractRow(file, sheet, row, fromCol, toCol)
@@ -466,8 +466,8 @@ func newReadColCommand(out io.Writer) *cobra.Command {
 
 Use --from-row and --to-row to limit the inclusive row range. If --to-row is omitted,
 the command reads through the worksheet used range.`,
-		Example: `  excel-extract read col -f report.xlsx -s SR1 -c B
-  excel-extract read col -f report.xlsx -s SR1 -c B --from-row 1 --to-row 20 --json`,
+		Example: `  excelx read col -f report.xlsx -s SR1 -c B
+  excelx read col -f report.xlsx -s SR1 -c B --from-row 1 --to-row 20 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ExtractCol(file, sheet, col, fromRow, toRow)
@@ -505,8 +505,8 @@ func newReadRangeCommand(out io.Writer) *cobra.Command {
 		Long: `Read a rectangular A1 range from a .xlsx or .xlsm workbook.
 
 The range must not include a sheet name. Text output is a TSV matrix.`,
-		Example: `  excel-extract read range -f report.xlsx -s SR1 --range A1:H20
-  excel-extract read range -f report.xlsx -s SR1 --range B4 --json`,
+		Example: `  excelx read range -f report.xlsx -s SR1 --range A1:H20
+  excelx read range -f report.xlsx -s SR1 --range B4 --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ExtractRange(file, sheet, rangeRef)
@@ -540,8 +540,8 @@ func newReadBatchCommand(out io.Writer) *cobra.Command {
 		Long: `Read arbitrary cells from a .xlsx or .xlsm workbook using JSON queries.
 
 The query JSON shape is: {"queries":[{"sheet":"SR1","row":4,"col":"B"}]}.`,
-		Example: `  excel-extract read batch -f report.xlsx --queries queries.json --json
-  cat queries.json | excel-extract read batch -f report.xlsx --queries -`,
+		Example: `  excelx read batch -f report.xlsx --queries queries.json --json
+  cat queries.json | excelx read batch -f report.xlsx --queries -`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request, err := readBatchRequest(queriesPath, cmd.InOrStdin())
@@ -577,11 +577,11 @@ func newWriteCommand(out io.Writer) *cobra.Command {
 
 Write commands save changes in place by default. Use --output to write a modified copy
 and leave --file unchanged. Existing --output files are rejected unless --overwrite is set.`,
-		Example: `  excel-extract write cell -f report.xlsx -s SR1 -r 4 -c B --type text --value done
-  excel-extract write row -f report.xlsx -s SR1 -r 4 --from-col B --values values.json
-  excel-extract write range -f report.xlsx -s SR1 --range B4:D6 --values range-values.json
-  excel-extract write clear -f report.xlsx -s SR1 --range B4:D6
-  excel-extract write batch -f report.xlsx --updates updates.json --output filled.xlsx`,
+		Example: `  excelx write cell -f report.xlsx -s SR1 -r 4 -c B --type text --value done
+  excelx write row -f report.xlsx -s SR1 -r 4 --from-col B --values values.json
+  excelx write range -f report.xlsx -s SR1 --range B4:D6 --values range-values.json
+  excelx write clear -f report.xlsx -s SR1 --range B4:D6
+  excelx write batch -f report.xlsx --updates updates.json --output filled.xlsx`,
 		Args: cobra.NoArgs,
 	}
 	cmd.AddCommand(newWriteCellCommand(out))
@@ -610,9 +610,9 @@ func newWriteCellCommand(out io.Writer) *cobra.Command {
 		Long: `Write one cell in a .xlsx or .xlsm workbook.
 
 Supported types are text, number, bool, formula, and blank. Non-blank types require --value.`,
-		Example: `  excel-extract write cell -f report.xlsx -s SR1 -r 4 -c B --type text --value "已确认"
-  excel-extract write cell -f report.xlsx -s SR1 -r 4 -c C --type number --value 123.45
-  excel-extract write cell -f report.xlsx -s SR1 -r 4 -c D --type blank --json`,
+		Example: `  excelx write cell -f report.xlsx -s SR1 -r 4 -c B --type text --value "已确认"
+  excelx write cell -f report.xlsx -s SR1 -r 4 -c C --type number --value 123.45
+  excelx write cell -f report.xlsx -s SR1 -r 4 -c D --type blank --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.WriteCell(file, sheet, row, col, fillValueFromFlags(cmd, typ, value), save.output, save.overwrite)
@@ -638,8 +638,8 @@ func newWriteRowCommand(out io.Writer) *cobra.Command {
 		Long: `Write consecutive cells in one row using typed JSON values.
 
 The values JSON shape is: {"values":[{"type":"text","value":"A"},{"type":"number","value":"123"}]}.`,
-		Example: `  excel-extract write row -f report.xlsx -s SR1 -r 4 --from-col B --values values.json
-  cat values.json | excel-extract write row -f report.xlsx -s SR1 -r 4 --from-col B --values - --json`,
+		Example: `  excelx write row -f report.xlsx -s SR1 -r 4 --from-col B --values values.json
+  cat values.json | excelx write row -f report.xlsx -s SR1 -r 4 --from-col B --values - --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			values, err := readValuesRequest(valuesPath, cmd.InOrStdin())
@@ -678,7 +678,7 @@ func newWriteColCommand(out io.Writer) *cobra.Command {
 		Long: `Write consecutive cells in one column using typed JSON values.
 
 The values JSON shape is: {"values":[{"type":"text","value":"A"},{"type":"blank"}]}.`,
-		Example: `  excel-extract write col -f report.xlsx -s SR1 -c B --from-row 4 --values values.json`,
+		Example: `  excelx write col -f report.xlsx -s SR1 -c B --from-row 4 --values values.json`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			values, err := readValuesRequest(valuesPath, cmd.InOrStdin())
@@ -716,7 +716,7 @@ func newWriteRangeCommand(out io.Writer) *cobra.Command {
 		Long: `Write a rectangular A1 range using a typed JSON value matrix.
 
 The values JSON shape is: {"rows":[[{"type":"text","value":"A"}],[{"type":"bool","value":"true"}]]}.`,
-		Example: `  excel-extract write range -f report.xlsx -s SR1 --range B4:D6 --values range-values.json`,
+		Example: `  excelx write range -f report.xlsx -s SR1 --range B4:D6 --values range-values.json`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			values, err := readRangeValuesRequest(valuesPath, cmd.InOrStdin())
@@ -750,8 +750,8 @@ func newWriteClearCommand(out io.Writer) *cobra.Command {
 		Use:   "clear -f <file> -s <sheet> --range <A1:B2>",
 		Short: "Clear a cell or rectangular range",
 		Long:  `Clear cell values and formulas in an A1 cell or rectangular range while preserving styles.`,
-		Example: `  excel-extract write clear -f report.xlsx -s SR1 --range B4:D6
-  excel-extract write clear -f report.xlsx -s SR1 --range B4 --output cleared.xlsx`,
+		Example: `  excelx write clear -f report.xlsx -s SR1 --range B4:D6
+  excelx write clear -f report.xlsx -s SR1 --range B4 --output cleared.xlsx`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := extract.ClearRange(file, sheet, rangeRef, save.output, save.overwrite)
@@ -782,8 +782,8 @@ func newWriteBatchCommand(out io.Writer) *cobra.Command {
 
 This command uses the same JSON shape as the legacy fill command:
 {"updates":[{"sheet":"SR1","row":4,"col":"B","type":"text","value":"done"}]}.`,
-		Example: `  excel-extract write batch -f report.xlsx --updates updates.json
-  excel-extract write batch -f report.xlsx --updates updates.json --output filled.xlsx --json`,
+		Example: `  excelx write batch -f report.xlsx --updates updates.json
+  excelx write batch -f report.xlsx --updates updates.json --output filled.xlsx --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request, err := readFillRequest(updatesPath, cmd.InOrStdin())

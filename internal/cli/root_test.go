@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cligrep/cli-excel-extract/internal/extract"
+	"github.com/cligrep/excelx/internal/extract"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -297,7 +297,7 @@ func TestVersionCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version command returned error: %v", err)
 	}
-	assertContainsAll(t, stdout, "excel-extract", "version=", "commit=", "date=", "platform=")
+	assertContainsAll(t, stdout, "excelx", "version=", "commit=", "date=", "platform=")
 }
 
 func TestRootHelpIsSelfContained(t *testing.T) {
