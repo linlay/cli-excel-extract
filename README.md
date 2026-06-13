@@ -1,12 +1,12 @@
 # excel-extract 操作手册
 
-`excel-extract` 是一个使用 Go 1.26、Cobra 和 Excelize 构建的命令行工具，用于从 `.xlsx` 和 `.xlsm` 文件中提取内容。它支持列出工作表、读取单个单元格、读取整行或指定列范围，并可输出纯文本或 JSON。
+`excel-extract` 是一个使用 Go 1.26、Cobra 和 Excelize 构建的命令行工具，用于从 `.xlsx` 和 `.xlsm` 文件中读取和写入内容。新命令模型使用 `read` 表示不修改文件，使用 `write` 表示会修改原文件或生成新文件；旧版 `sheets`、`cell`、`row`、`fill` 命令继续兼容。
 
 ## 支持范围
 
 - 支持文件：`.xlsx`、`.xlsm`
 - 不支持文件：旧版二进制 `.xls`
-- `.xlsm` 只读取已有单元格内容，不执行宏，不修改原文件
+- `.xlsm` 不执行宏；`read` 命令不修改原文件，`write`/`fill` 命令只修改 workbook 内容
 - 公式单元格默认返回计算后的显示值；计算由内置 Excelize 完成，不依赖 Excel 或 LibreOffice
 - 行号使用 Excel 习惯的 1-based 编号
 - 列号支持两种写法：字母列名如 `A`、`BC`，或数字列号如 `1`、`55`
@@ -74,104 +74,226 @@ dist/windows-amd64/excel-extract.exe
 ```bash
 ./dist/excel-extract --help
 ./dist/excel-extract --version
-./dist/excel-extract sheets --help
-./dist/excel-extract cell --help
-./dist/excel-extract row --help
+./dist/excel-extract read --help
+./dist/excel-extract read range --help
+./dist/excel-extract write --help
+./dist/excel-extract write batch --help
 ```
 
 帮助内容包含支持文件类型、行列规则、公式计算行为、文本/JSON 输出格式和可复制示例。通常只看 `--help` 就能完成操作。
 
-## 列出工作表
+## 读取内容
 
-纯文本输出：
+`read` 命令只读取，不修改源文件。
 
-```bash
-./dist/excel-extract sheets -f "/path/to/report.xlsm"
-```
-
-JSON 输出：
+列出工作表：
 
 ```bash
-./dist/excel-extract sheets -f "/path/to/report.xlsm" --json
+./dist/excel-extract read sheets -f "/path/to/report.xlsm"
 ```
 
-JSON 格式：
+查看 workbook 结构。文本输出依次是 sheet 名、已用范围、最大行、最大列：
+
+```bash
+./dist/excel-extract read info -f "/path/to/report.xlsm"
+```
+
+读取单元格：
+
+```bash
+./dist/excel-extract read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
+./dist/excel-extract read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c 2 --json
+```
+
+读取一行或指定列范围：
+
+```bash
+./dist/excel-extract read row -f "/path/to/report.xlsm" -s SR1 -r 4
+./dist/excel-extract read row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H --json
+```
+
+读取一列或指定行范围：
+
+```bash
+./dist/excel-extract read col -f "/path/to/report.xlsm" -s SR1 -c B
+./dist/excel-extract read col -f "/path/to/report.xlsm" -s SR1 -c B --from-row 1 --to-row 20 --json
+```
+
+读取矩形区域。文本输出是 TSV 矩阵：
+
+```bash
+./dist/excel-extract read range -f "/path/to/report.xlsm" -s SR1 --range A1:H20
+./dist/excel-extract read range -f "/path/to/report.xlsm" -s SR1 --range B4 --json
+```
+
+任意单元格批量读取：
+
+```bash
+./dist/excel-extract read batch -f "/path/to/report.xlsm" --queries queries.json --json
+```
+
+`queries.json`：
 
 ```json
-{"file":"/path/to/report.xlsm","sheets":["封面","校验表","SR1"]}
+{
+  "queries": [
+    {"sheet": "SR1", "row": 4, "col": "B"},
+    {"sheet": "SR1", "row": 5, "col": "C"}
+  ]
+}
 ```
 
-## 提取单个单元格
-
-按字母列号读取：
-
-```bash
-./dist/excel-extract cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
-```
-
-按数字列号读取：
-
-```bash
-./dist/excel-extract cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c 2
-```
-
-JSON 输出：
-
-```bash
-./dist/excel-extract cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B --json
-```
-
-JSON 格式：
+读取结果 JSON 示例：
 
 ```json
 {"file":"/path/to/report.xlsm","sheet":"SR1","row":4,"col":"B","value":"指标名称"}
 ```
 
-## 提取一行
-
-读取整行：
-
-```bash
-./dist/excel-extract row -f "/path/to/report.xlsm" -s SR1 -r 4
-```
-
-纯文本输出使用制表符分隔，便于复制到表格或管道处理。
-
-读取指定列范围：
-
-```bash
-./dist/excel-extract row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
-```
-
-列范围也可以使用数字：
-
-```bash
-./dist/excel-extract row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col 1 --to-col 8
-```
-
-JSON 输出：
-
-```bash
-./dist/excel-extract row -f "/path/to/report.xlsm" -s SR1 -r 4 --json
-```
-
-JSON 格式：
-
 ```json
 {
   "file": "/path/to/report.xlsm",
   "sheet": "SR1",
-  "row": 4,
+  "range": "A1:B2",
   "cells": [
-    {"col": "A", "value": "指标序号"},
-    {"col": "B", "value": "指标名称"}
+    {"row": 1, "col": "A", "value": "指标序号"},
+    {"row": 1, "col": "B", "value": "指标名称"}
   ]
 }
 ```
 
-空单元格会以空字符串 `""` 返回。默认读取整行时，工具会尽量保留工作表已用范围内的空列；指定 `--from-col` 和 `--to-col` 时，以用户指定范围为准。
+空单元格会以空字符串 `""` 返回。公式单元格输出 Excelize 能计算出的显示值。
 
-如果行内包含公式单元格，输出会使用公式计算后的显示值。例如单元格公式引用其他 sheet 时，工具会沿公式链计算并返回最终结果。
+## 写入内容
+
+`write` 命令默认原地修改 `--file`。如果要保留源文件，使用 `--output` 写入新文件；`--output` 指向已存在文件时默认报错，确认覆盖时添加 `--overwrite`。
+
+写一个单元格：
+
+```bash
+./dist/excel-extract write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c B --type text --value "已确认"
+./dist/excel-extract write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c C --type number --value 123.45
+./dist/excel-extract write cell -f "/path/to/report.xlsx" -s SR1 -r 4 -c D --type blank --json
+```
+
+写一行连续区域：
+
+```bash
+./dist/excel-extract write row -f "/path/to/report.xlsx" -s SR1 -r 4 --from-col B --values values.json
+```
+
+写一列连续区域：
+
+```bash
+./dist/excel-extract write col -f "/path/to/report.xlsx" -s SR1 -c B --from-row 4 --values values.json
+```
+
+`values.json`：
+
+```json
+{
+  "values": [
+    {"type": "text", "value": "A"},
+    {"type": "number", "value": "123"},
+    {"type": "blank"}
+  ]
+}
+```
+
+写矩形区域：
+
+```bash
+./dist/excel-extract write range -f "/path/to/report.xlsx" -s SR1 --range B4:D6 --values range-values.json
+```
+
+`range-values.json`：
+
+```json
+{
+  "rows": [
+    [
+      {"type": "text", "value": "A"},
+      {"type": "number", "value": "123"}
+    ],
+    [
+      {"type": "bool", "value": "true"},
+      {"type": "formula", "value": "=SUM(B4:C4)"}
+    ]
+  ]
+}
+```
+
+清空单元格或矩形区域，保留样式：
+
+```bash
+./dist/excel-extract write clear -f "/path/to/report.xlsx" -s SR1 --range B4:D6
+```
+
+任意单元格批量写入：
+
+```bash
+./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates updates.json
+./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates updates.json --output "/path/to/filled.xlsx"
+```
+
+`updates.json`：
+
+```json
+{
+  "updates": [
+    {"sheet": "SR1", "row": 4, "col": "B", "type": "text", "value": "已确认"},
+    {"sheet": "SR1", "row": 4, "col": "C", "type": "number", "value": "123.45"},
+    {"sheet": "SR1", "row": 4, "col": "D", "type": "bool", "value": "true"},
+    {"sheet": "SR1", "row": 4, "col": "E", "type": "formula", "value": "=SUM(A4:C4)"},
+    {"sheet": "SR1", "row": 4, "col": "F", "type": "blank"}
+  ]
+}
+```
+
+从标准输入读取 JSON：
+
+```bash
+cat updates.json | ./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates - --json
+```
+
+支持的写入类型：
+
+- `text`：按文本写入，公式样式文本也不会执行。
+- `number`：写入有限十进制数字。
+- `bool`：写入 `true` 或 `false`。
+- `formula`：写入公式，`value` 必须以 `=` 开头。
+- `blank`：清空单元格值和公式，保留样式；不能带 `value`。
+
+写入文本输出示例：
+
+```text
+updated /path/to/report.xlsx: 5 cells
+```
+
+写入 JSON 输出示例：
+
+```json
+{"file":"/path/to/report.xlsx","output":"/path/to/report.xlsx","inPlace":true,"updated":5}
+```
+
+## 兼容旧命令
+
+以下旧命令继续可用，行为与新命令对应：
+
+```bash
+./dist/excel-extract sheets -f "/path/to/report.xlsm"
+./dist/excel-extract cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
+./dist/excel-extract row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
+./dist/excel-extract fill -f "/path/to/report.xlsx" --updates updates.json
+```
+
+对应的新命令：
+
+```bash
+./dist/excel-extract read sheets -f "/path/to/report.xlsm"
+./dist/excel-extract read cell -f "/path/to/report.xlsm" -s SR1 -r 4 -c B
+./dist/excel-extract read row -f "/path/to/report.xlsm" -s SR1 -r 4 --from-col A --to-col H
+./dist/excel-extract write batch -f "/path/to/report.xlsx" --updates updates.json
+```
 
 ## 样例验证
 
@@ -184,13 +306,13 @@ SAMPLE="/Users/linlay/Downloads/期货公司监管报表（月报）1.3.2版 (2)
 列出工作表：
 
 ```bash
-./dist/excel-extract sheets -f "$SAMPLE" --json
+./dist/excel-extract read sheets -f "$SAMPLE" --json
 ```
 
 提取 `SR1!B4`：
 
 ```bash
-./dist/excel-extract cell -f "$SAMPLE" -s SR1 -r 4 -c B
+./dist/excel-extract read cell -f "$SAMPLE" -s SR1 -r 4 -c B
 ```
 
 预期输出：
@@ -202,7 +324,7 @@ SAMPLE="/Users/linlay/Downloads/期货公司监管报表（月报）1.3.2版 (2)
 提取 `SR1` 第 4 行 JSON：
 
 ```bash
-./dist/excel-extract row -f "$SAMPLE" -s SR1 -r 4 --json
+./dist/excel-extract read row -f "$SAMPLE" -s SR1 -r 4 --json
 ```
 
 ## 错误处理
@@ -215,6 +337,10 @@ SAMPLE="/Users/linlay/Downloads/期货公司监管报表（月报）1.3.2版 (2)
 - 行号小于 1 或超过 Excel 行数限制
 - 列号为空、格式非法或超过 Excel 列数限制
 - `--from-col` 大于 `--to-col`
+- `read range` / `write range` 的 A1 范围非法、反向或包含 sheet 名
+- JSON 为空、字段缺失、类型非法或包含未知字段
+- `number`、`bool`、`formula`、`blank` 值不符合类型要求
+- `write --output` 文件已存在且未指定 `--overwrite`
 
 ## 测试
 
@@ -224,5 +350,5 @@ SAMPLE="/Users/linlay/Downloads/期货公司监管报表（月报）1.3.2版 (2)
 go test ./...
 ```
 
-测试覆盖列号解析、参数校验、JSON 输出、空单元格处理，以及临时 `.xlsx` 的 `sheets`、`cell`、`row` 命令行为。
+测试覆盖列号解析、A1 范围解析、参数校验、JSON 输出、空单元格处理、批量读写校验和保存策略，以及临时 `.xlsx` 的新旧命令行为。
 # cli-excel-extract

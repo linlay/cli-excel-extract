@@ -2,7 +2,9 @@ package extract
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xuri/excelize/v2"
@@ -140,6 +142,376 @@ func TestExtractionErrors(t *testing.T) {
 	}
 }
 
+func TestWorkbookInfoAndAdditionalReads(t *testing.T) {
+	path := writeTestWorkbook(t)
+
+	info, err := InspectWorkbook(path)
+	if err != nil {
+		t.Fatalf("InspectWorkbook returned error: %v", err)
+	}
+	if len(info.Sheets) != 2 || info.Sheets[0].Name != "Data" || info.Sheets[0].MaxRow != 2 || info.Sheets[0].MaxCol != 4 {
+		t.Fatalf("unexpected workbook info: %#v", info)
+	}
+
+	col, err := ExtractCol(path, "Data", "C", 1, 2)
+	if err != nil {
+		t.Fatalf("ExtractCol returned error: %v", err)
+	}
+	if col.Col != "C" || len(col.Cells) != 2 || col.Cells[0].Value != "Amount" || col.Cells[1].Value != "42.5" {
+		t.Fatalf("unexpected col result: %#v", col)
+	}
+
+	rng, err := ExtractRange(path, "Data", "A1:C2")
+	if err != nil {
+		t.Fatalf("ExtractRange returned error: %v", err)
+	}
+	if rng.Range != "A1:C2" || len(rng.Cells) != 6 {
+		t.Fatalf("unexpected range result: %#v", rng)
+	}
+	if rng.Cells[0].Value != "Name" || rng.Cells[4].Value != "" || rng.Cells[5].Value != "42.5" {
+		t.Fatalf("unexpected range cells: %#v", rng.Cells)
+	}
+
+	batch, err := ReadCells(path, ReadBatchRequest{Queries: []ReadQuery{
+		{Sheet: "Data", Row: 2, Col: "A"},
+		{Sheet: "Data", Row: 2, Col: "C"},
+	}})
+	if err != nil {
+		t.Fatalf("ReadCells returned error: %v", err)
+	}
+	if len(batch.Cells) != 2 || batch.Cells[0].Col != "A" || batch.Cells[0].Value != "alpha" || batch.Cells[1].Value != "42.5" {
+		t.Fatalf("unexpected batch result: %#v", batch)
+	}
+}
+
+func TestRangeReadValidationErrors(t *testing.T) {
+	path := writeTestWorkbook(t)
+
+	tests := []string{"", "Data!A1:B2", "C2:A1", "A0", "XFE1"}
+	for _, rangeRef := range tests {
+		t.Run(rangeRef, func(t *testing.T) {
+			if _, err := ExtractRange(path, "Data", rangeRef); err == nil {
+				t.Fatalf("expected range error for %q", rangeRef)
+			}
+		})
+	}
+}
+
+func TestWriteHelpers(t *testing.T) {
+	path := writeTestWorkbook(t)
+
+	if _, err := WriteCell(path, "Data", 2, "B", FillValue{Type: "text", Value: strPtr("single")}, "", false); err != nil {
+		t.Fatalf("WriteCell returned error: %v", err)
+	}
+	cell, err := ExtractCell(path, "Data", 2, "B")
+	if err != nil {
+		t.Fatalf("ExtractCell after WriteCell: %v", err)
+	}
+	if cell.Value != "single" {
+		t.Fatalf("WriteCell value = %q, want single", cell.Value)
+	}
+
+	if _, err := WriteRow(path, "Data", 3, "A", ValuesRequest{Values: []FillValue{
+		{Type: "text", Value: strPtr("row-a")},
+		{Type: "number", Value: strPtr("12")},
+	}}, "", false); err != nil {
+		t.Fatalf("WriteRow returned error: %v", err)
+	}
+	row, err := ExtractRow(path, "Data", 3, "A", "B")
+	if err != nil {
+		t.Fatalf("ExtractRow after WriteRow: %v", err)
+	}
+	if row.Cells[0].Value != "row-a" || row.Cells[1].Value != "12" {
+		t.Fatalf("unexpected WriteRow cells: %#v", row.Cells)
+	}
+
+	if _, err := WriteCol(path, "Data", "D", 3, ValuesRequest{Values: []FillValue{
+		{Type: "bool", Value: strPtr("true")},
+		{Type: "text", Value: strPtr("col-d")},
+	}}, "", false); err != nil {
+		t.Fatalf("WriteCol returned error: %v", err)
+	}
+	col, err := ExtractCol(path, "Data", "D", 3, 4)
+	if err != nil {
+		t.Fatalf("ExtractCol after WriteCol: %v", err)
+	}
+	if !strings.EqualFold(col.Cells[0].Value, "true") || col.Cells[1].Value != "col-d" {
+		t.Fatalf("unexpected WriteCol cells: %#v", col.Cells)
+	}
+
+	if _, err := WriteRange(path, "Data", "B5:C6", RangeValuesRequest{Rows: [][]FillValue{
+		{{Type: "text", Value: strPtr("r1c1")}, {Type: "text", Value: strPtr("r1c2")}},
+		{{Type: "number", Value: strPtr("21")}, {Type: "formula", Value: strPtr("=B6+1")}},
+	}}, "", false); err != nil {
+		t.Fatalf("WriteRange returned error: %v", err)
+	}
+	rng, err := ExtractRange(path, "Data", "B5:C6")
+	if err != nil {
+		t.Fatalf("ExtractRange after WriteRange: %v", err)
+	}
+	if rng.Cells[0].Value != "r1c1" || rng.Cells[1].Value != "r1c2" || rng.Cells[2].Value != "21" || rng.Cells[3].Value != "22" {
+		t.Fatalf("unexpected WriteRange cells: %#v", rng.Cells)
+	}
+
+	if _, err := ClearRange(path, "Data", "B5:C5", "", false); err != nil {
+		t.Fatalf("ClearRange returned error: %v", err)
+	}
+	cleared, err := ExtractRange(path, "Data", "B5:C5")
+	if err != nil {
+		t.Fatalf("ExtractRange after ClearRange: %v", err)
+	}
+	if cleared.Cells[0].Value != "" || cleared.Cells[1].Value != "" {
+		t.Fatalf("unexpected cleared cells: %#v", cleared.Cells)
+	}
+}
+
+func TestWriteRangeValidationDoesNotSave(t *testing.T) {
+	path := writeTestWorkbook(t)
+
+	_, err := WriteRange(path, "Data", "A2:B2", RangeValuesRequest{Rows: [][]FillValue{
+		{{Type: "text", Value: strPtr("changed")}},
+	}}, "", false)
+	if err == nil {
+		t.Fatalf("expected shape validation error")
+	}
+
+	cell, err := ExtractCell(path, "Data", 2, "A")
+	if err != nil {
+		t.Fatalf("ExtractCell after failed WriteRange: %v", err)
+	}
+	if cell.Value != "alpha" {
+		t.Fatalf("source value after failed WriteRange = %q, want alpha", cell.Value)
+	}
+}
+
+func TestFillCellsWritesMultipleTypesInPlace(t *testing.T) {
+	path := writeFillWorkbook(t)
+
+	result, err := FillCells(path, FillRequest{
+		Updates: []FillUpdate{
+			{Sheet: "Data", Row: 3, Col: "A", Type: "text", Value: strPtr("已确认")},
+			{Sheet: "Data", Row: 3, Col: "B", Type: "number", Value: strPtr("123.45")},
+			{Sheet: "Data", Row: 3, Col: "C", Type: "bool", Value: strPtr("true")},
+			{Sheet: "Data", Row: 3, Col: "D", Type: "formula", Value: strPtr("=SUM(B3,1)")},
+			{Sheet: "Data", Row: 2, Col: "B", Type: "blank"},
+		},
+	}, "", false)
+	if err != nil {
+		t.Fatalf("FillCells returned error: %v", err)
+	}
+	if result.File != path || result.Output != path || !result.InPlace || result.Updated != 5 {
+		t.Fatalf("unexpected fill result: %#v", result)
+	}
+
+	f, err := excelize.OpenFile(path)
+	if err != nil {
+		t.Fatalf("OpenFile: %v", err)
+	}
+	defer f.Close()
+
+	assertCellValue(t, f, "Data", "A3", "已确认")
+	assertCellValue(t, f, "Data", "B3", "123.45")
+	boolValue, err := f.GetCellValue("Data", "C3")
+	if err != nil {
+		t.Fatalf("GetCellValue C3: %v", err)
+	}
+	if !strings.EqualFold(boolValue, "true") {
+		t.Fatalf("bool cell value = %q, want true", boolValue)
+	}
+	formula, err := f.GetCellFormula("Data", "D3")
+	if err != nil {
+		t.Fatalf("GetCellFormula D3: %v", err)
+	}
+	if formula != "=SUM(B3,1)" {
+		t.Fatalf("formula = %q, want =SUM(B3,1)", formula)
+	}
+	assertCellValue(t, f, "Data", "B2", "")
+	formula, err = f.GetCellFormula("Data", "B2")
+	if err != nil {
+		t.Fatalf("GetCellFormula B2: %v", err)
+	}
+	if formula != "" {
+		t.Fatalf("blank cell formula = %q, want empty", formula)
+	}
+	styleID, err := f.GetCellStyle("Data", "B2")
+	if err != nil {
+		t.Fatalf("GetCellStyle B2: %v", err)
+	}
+	if styleID == 0 {
+		t.Fatalf("blank should preserve existing style")
+	}
+}
+
+func TestFillCellsOutputKeepsSourceUnchanged(t *testing.T) {
+	path := writeTestWorkbook(t)
+	output := filepath.Join(t.TempDir(), "filled.xlsx")
+
+	result, err := FillCells(path, FillRequest{
+		Updates: []FillUpdate{
+			{Sheet: "Data", Row: 2, Col: "A", Type: "text", Value: strPtr("changed")},
+		},
+	}, output, false)
+	if err != nil {
+		t.Fatalf("FillCells returned error: %v", err)
+	}
+	if result.Output != output || result.InPlace {
+		t.Fatalf("unexpected fill result: %#v", result)
+	}
+
+	sourceCell, err := ExtractCell(path, "Data", 2, "A")
+	if err != nil {
+		t.Fatalf("ExtractCell source: %v", err)
+	}
+	if sourceCell.Value != "alpha" {
+		t.Fatalf("source value = %q, want alpha", sourceCell.Value)
+	}
+	outputCell, err := ExtractCell(output, "Data", 2, "A")
+	if err != nil {
+		t.Fatalf("ExtractCell output: %v", err)
+	}
+	if outputCell.Value != "changed" {
+		t.Fatalf("output value = %q, want changed", outputCell.Value)
+	}
+}
+
+func TestFillCellsValidationFailureDoesNotSave(t *testing.T) {
+	path := writeTestWorkbook(t)
+
+	_, err := FillCells(path, FillRequest{
+		Updates: []FillUpdate{
+			{Sheet: "Data", Row: 2, Col: "A", Type: "text", Value: strPtr("changed")},
+			{Sheet: "Data", Row: 2, Col: "C", Type: "number", Value: strPtr("not-a-number")},
+		},
+	}, "", false)
+	if err == nil {
+		t.Fatalf("expected validation error")
+	}
+
+	cell, err := ExtractCell(path, "Data", 2, "A")
+	if err != nil {
+		t.Fatalf("ExtractCell after failed fill: %v", err)
+	}
+	if cell.Value != "alpha" {
+		t.Fatalf("source value after failed fill = %q, want alpha", cell.Value)
+	}
+}
+
+func TestFillCellsValidationErrors(t *testing.T) {
+	path := writeTestWorkbook(t)
+	existingOutput := filepath.Join(t.TempDir(), "existing.xlsx")
+	if err := os.WriteFile(existingOutput, []byte("already here"), 0o644); err != nil {
+		t.Fatalf("WriteFile existing output: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		request FillRequest
+		output  string
+	}{
+		{
+			name:    "empty updates",
+			request: FillRequest{},
+		},
+		{
+			name: "missing sheet",
+			request: FillRequest{Updates: []FillUpdate{
+				{Row: 1, Col: "A", Type: "text", Value: strPtr("x")},
+			}},
+		},
+		{
+			name: "unknown sheet",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Missing", Row: 1, Col: "A", Type: "text", Value: strPtr("x")},
+			}},
+		},
+		{
+			name: "invalid row",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 0, Col: "A", Type: "text", Value: strPtr("x")},
+			}},
+		},
+		{
+			name: "invalid column",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "0", Type: "text", Value: strPtr("x")},
+			}},
+		},
+		{
+			name: "invalid type",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "date", Value: strPtr("x")},
+			}},
+		},
+		{
+			name: "missing value",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "text"},
+			}},
+		},
+		{
+			name: "invalid number",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "number", Value: strPtr("NaN")},
+			}},
+		},
+		{
+			name: "invalid bool",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "bool", Value: strPtr("yes")},
+			}},
+		},
+		{
+			name: "formula without equals",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "formula", Value: strPtr("SUM(A1:A2)")},
+			}},
+		},
+		{
+			name: "blank with value",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "blank", Value: strPtr("")},
+			}},
+		},
+		{
+			name: "existing output without overwrite",
+			request: FillRequest{Updates: []FillUpdate{
+				{Sheet: "Data", Row: 1, Col: "A", Type: "text", Value: strPtr("x")},
+			}},
+			output: existingOutput,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := FillCells(path, tt.request, tt.output, false); err == nil {
+				t.Fatalf("expected error")
+			}
+		})
+	}
+}
+
+func TestFillCellsOverwriteExistingOutput(t *testing.T) {
+	path := writeTestWorkbook(t)
+	output := writeTestWorkbook(t)
+
+	_, err := FillCells(path, FillRequest{
+		Updates: []FillUpdate{
+			{Sheet: "Data", Row: 2, Col: "A", Type: "text", Value: strPtr("overwritten")},
+		},
+	}, output, true)
+	if err != nil {
+		t.Fatalf("FillCells overwrite returned error: %v", err)
+	}
+
+	cell, err := ExtractCell(output, "Data", 2, "A")
+	if err != nil {
+		t.Fatalf("ExtractCell output: %v", err)
+	}
+	if cell.Value != "overwritten" {
+		t.Fatalf("output value = %q, want overwritten", cell.Value)
+	}
+}
+
 func writeTestWorkbook(t *testing.T) string {
 	t.Helper()
 
@@ -166,6 +538,36 @@ func writeTestWorkbook(t *testing.T) string {
 	}
 
 	path := filepath.Join(t.TempDir(), "book.xlsx")
+	if err := f.SaveAs(path); err != nil {
+		t.Fatalf("SaveAs: %v", err)
+	}
+	return path
+}
+
+func writeFillWorkbook(t *testing.T) string {
+	t.Helper()
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	if err := f.SetSheetName("Sheet1", "Data"); err != nil {
+		t.Fatalf("SetSheetName: %v", err)
+	}
+	if err := f.SetCellValue("Data", "A2", 10); err != nil {
+		t.Fatalf("SetCellValue A2: %v", err)
+	}
+	if err := f.SetCellFormula("Data", "B2", "=A2+1"); err != nil {
+		t.Fatalf("SetCellFormula B2: %v", err)
+	}
+	style, err := f.NewStyle(&excelize.Style{NumFmt: 2})
+	if err != nil {
+		t.Fatalf("NewStyle: %v", err)
+	}
+	if err := f.SetCellStyle("Data", "B2", "B2", style); err != nil {
+		t.Fatalf("SetCellStyle B2: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "fill.xlsx")
 	if err := f.SaveAs(path); err != nil {
 		t.Fatalf("SaveAs: %v", err)
 	}
@@ -216,4 +618,20 @@ func writeFormulaWorkbook(t *testing.T) string {
 		t.Fatalf("SaveAs: %v", err)
 	}
 	return path
+}
+
+func assertCellValue(t *testing.T, f *excelize.File, sheet, cell, want string) {
+	t.Helper()
+
+	value, err := f.GetCellValue(sheet, cell)
+	if err != nil {
+		t.Fatalf("GetCellValue %s!%s: %v", sheet, cell, err)
+	}
+	if value != want {
+		t.Fatalf("%s!%s = %q, want %q", sheet, cell, value, want)
+	}
+}
+
+func strPtr(value string) *string {
+	return &value
 }
